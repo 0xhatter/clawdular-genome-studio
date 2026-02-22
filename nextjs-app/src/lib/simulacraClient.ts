@@ -1,4 +1,4 @@
-import type { IdeaNode, SimulacraSnapshot } from '@/modules/simulacra/types';
+import type { SimpleIdeaNode as IdeaNode, SimpleSimulacraSnapshot as SimulacraSnapshot } from '@/modules/simulacra/types-simplified';
 
 export interface SimulacraActionMeta {
   createdNodeId?: string;
@@ -62,7 +62,7 @@ export const simulacraClient = {
   async action(
     projectId: string,
     payload:
-      | { action: 'createIdea'; content: string; parentId?: string; createdBy?: IdeaNode['createdBy'] }
+      | { action: 'createIdea'; content: string; parentIds?: string[]; createdBy?: IdeaNode['createdBy'] }
       | { action: 'feed'; nodeId: string; amount?: number }
       | { action: 'tick' }
       | { action: 'discover' }

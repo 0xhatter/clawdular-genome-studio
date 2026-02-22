@@ -3,26 +3,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn, getBezierPath } from '@/lib/utils';
 import { useSimulacra } from '@/modules/simulacra/hooks/useSimulacra';
-import { proposeConnection } from '@/modules/simulacra/services/simulacraService';
 
 const NODE_WIDTH = 230;
 const NODE_HALF_WIDTH = NODE_WIDTH / 2;
 const NODE_HALF_HEIGHT = 68;
 
-function energyTone(value: number, max: number): string {
-  const ratio = max > 0 ? value / max : 0;
-  if (ratio <= 0.2) return 'border-red-500/70 text-red-300';
-  if (ratio <= 0.45) return 'border-orange-500/70 text-orange-200';
-  if (ratio <= 0.75) return 'border-emerald-500/60 text-emerald-200';
+function attentionTone(value: number): string {
+  if (value <= 20) return 'border-red-500/70 text-red-300';
+  if (value <= 40) return 'border-orange-500/70 text-orange-200';
+  if (value <= 70) return 'border-emerald-500/60 text-emerald-200';
   return 'border-cyan-500/60 text-cyan-200';
 }
 
-function stageBadge(stage: string): string {
-  if (stage === 'embryo') return 'bg-blue-500/20 text-blue-200';
-  if (stage === 'infant') return 'bg-indigo-500/20 text-indigo-200';
-  if (stage === 'juvenile') return 'bg-emerald-500/20 text-emerald-200';
-  if (stage === 'adult') return 'bg-cyan-500/20 text-cyan-200';
-  if (stage === 'elder') return 'bg-amber-500/20 text-amber-200';
+function stateBadge(state: string): string {
+  if (state === 'seed') return 'bg-blue-500/20 text-blue-200';
+  if (state === 'growing') return 'bg-indigo-500/20 text-indigo-200';
+  if (state === 'mature') return 'bg-emerald-500/20 text-emerald-200';
+  if (state === 'dormant') return 'bg-zinc-700/40 text-zinc-300';
   return 'bg-zinc-700/40 text-zinc-300';
 }
 
@@ -184,19 +181,6 @@ export function Simulacra() {
     };
   }, [displayedNodes]);
 
-  const pollinationPreview = useMemo(() => {
-    if (selectedForPollination.length < 2) return null;
-    const parentA = snapshot.nodes.find((node) => node.id === selectedForPollination[0]);
-    const parentB = snapshot.nodes.find((node) => node.id === selectedForPollination[1]);
-    if (!parentA || !parentB) return null;
-
-    return {
-      parentA,
-      parentB,
-      compatibility: proposeConnection(parentA, parentB).compatibility,
-    };
-  }, [selectedForPollination, snapshot.nodes]);
-
   const handleWheel = useCallback((event: React.WheelEvent) => {
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
@@ -224,7 +208,7 @@ export function Simulacra() {
     <div className="flex-1 bg-bg-primary flex overflow-hidden">
       <aside className="w-[290px] border-r border-border bg-bg-tertiary flex flex-col">
         <div className="h-8 px-4 border-b border-border flex items-center justify-between">
-          <span className="text-2xs uppercase tracking-wide font-medium">Agent Panel</span>
+          <span className="text-2xs uppercase tracking-wide font-medium">Agents</span>
           <span className="text-2xs text-text-tertiary">[{snapshot.agents.length}]</span>
         </div>
 
@@ -236,10 +220,10 @@ export function Simulacra() {
                   <div className="text-xs uppercase">{agent.name}</div>
                   <div className="text-2xs text-text-secondary uppercase">{agent.role}</div>
                 </div>
-                <span className="text-2xs text-text-tertiary">Q:{agent.queue.length}</span>
+                <span className="text-2xs text-text-tertiary">A:{agent.actionCount}</span>
               </div>
               <div className="mt-2 text-2xs text-text-tertiary leading-relaxed">
-                C:{Math.round(agent.curiosity * 100)}% | Cr:{Math.round(agent.creativity * 100)}% | T:{Math.round(agent.thoroughness * 100)}%
+                Last: {new Date(agent.lastAction).toLocaleTimeString()}
               </div>
             </div>
           ))}
@@ -252,12 +236,6 @@ export function Simulacra() {
                 className="h-8 border border-border bg-bg-primary text-2xs uppercase hover:bg-bg-elevated transition-colors"
               >
                 Explore
-              </button>
-              <button
-                onClick={() => runAgentCycle('expand')}
-                className="h-8 border border-border bg-bg-primary text-2xs uppercase hover:bg-bg-elevated transition-colors"
-              >
-                Expand
               </button>
               <button
                 onClick={() => runAgentCycle('synthesize')}
@@ -291,15 +269,6 @@ export function Simulacra() {
             <div className="text-2xs text-text-tertiary">
               Selected: {selectedForPollination.length}/2
             </div>
-            {pollinationPreview ? (
-              <div className="text-2xs text-text-secondary leading-relaxed">
-                {pollinationPreview.parentA.id.slice(0, 6)} × {pollinationPreview.parentB.id.slice(0, 6)}
-                <br />
-                Compatibility: {Math.round(pollinationPreview.compatibility * 100)}%
-              </div>
-            ) : (
-              <div className="text-2xs text-text-tertiary">Pick two nodes from the graph to synthesize offspring.</div>
-            )}
             <button
               onClick={() => runPollination()}
               disabled={selectedForPollination.length < 2}
@@ -321,7 +290,7 @@ export function Simulacra() {
           <input
             value={draftIdea}
             onChange={(event) => setDraftIdea(event.target.value)}
-            placeholder="Seed a new organism idea..."
+            placeholder="Seed a new idea..."
             className="flex-1 h-7 bg-bg-primary border border-border px-2 text-xs outline-none focus:border-accent"
           />
           <button
@@ -422,33 +391,34 @@ export function Simulacra() {
                   const end = portPosition(target, false);
                   const path = getBezierPath(start.x, start.y, end.x, end.y);
                   const isSelected = selectedConnectionId === connection.id;
-                  const isActive = connection.activationCount > 0;
 
                   return (
                     <g key={connection.id}>
-                      {isActive && (
-                        <path
-                          d={path}
-                          fill="none"
-                          stroke="rgba(255,255,255,0.1)"
-                          strokeWidth={4}
-                        />
-                      )}
-
                       <path
                         data-connection="true"
                         d={path}
                         fill="none"
-                        stroke={isSelected ? '#fff' : isActive ? '#fff' : '#444'}
+                        stroke={isSelected ? '#fff' : '#444'}
                         strokeWidth={isSelected ? 2 : 1}
-                        strokeDasharray={isActive ? '4 4' : undefined}
-                        className={isActive ? 'cable-flow pointer-events-auto cursor-pointer' : 'pointer-events-auto cursor-pointer'}
-                        markerEnd={isActive ? 'url(#simulacra-dot)' : 'url(#simulacra-arrowhead)'}
+                        className="pointer-events-auto cursor-pointer"
+                        markerEnd="url(#simulacra-arrowhead)"
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelectedConnectionId((current) => (current === connection.id ? null : connection.id));
                         }}
                       />
+                      {connection.insight && isSelected && (
+                        <text
+                          x={(start.x + end.x) / 2}
+                          y={(start.y + end.y) / 2 - 10}
+                          fill="#fff"
+                          fontSize={10}
+                          textAnchor="middle"
+                          className="pointer-events-none"
+                        >
+                          {connection.type}
+                        </text>
+                      )}
                     </g>
                   );
                 })}
@@ -463,7 +433,7 @@ export function Simulacra() {
                     data-simulacra-node="true"
                     className={cn(
                       'absolute w-[230px] border bg-bg-secondary shadow-[0_0_0_1px_rgba(255,255,255,0.04)] p-3 select-none transition-colors',
-                      energyTone(node.energy.current, node.energy.max),
+                      attentionTone(node.attention),
                       selectedNodeId === node.id ? 'ring-1 ring-accent z-10' : 'hover:border-border-light z-2',
                       isDraggingNode ? 'cursor-grabbing' : 'cursor-grab'
                     )}
@@ -503,27 +473,27 @@ export function Simulacra() {
 
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="text-2xs text-text-tertiary">{node.id.slice(0, 6)}</span>
-                      <span className={cn('text-2xs uppercase px-1.5 py-0.5 rounded-sm', stageBadge(node.lifecycle.stage))}>
-                        {node.lifecycle.stage}
+                      <span className={cn('text-2xs uppercase px-1.5 py-0.5 rounded-sm', stateBadge(node.state))}>
+                        {node.state}
                       </span>
                     </div>
                     <div className="text-xs leading-snug min-h-[44px] overflow-hidden">{node.content}</div>
 
                     <div className="mt-2 space-y-1">
                       <div className="flex justify-between text-2xs text-text-secondary">
-                        <span>Energy</span>
-                        <span>{Math.round(node.energy.current)}/{Math.round(node.energy.max)}</span>
+                        <span>Attention</span>
+                        <span>{Math.round(node.attention)}%</span>
                       </div>
                       <div className="h-1 bg-border">
                         <div
                           className="h-full bg-text-primary"
-                          style={{ width: `${Math.min(100, (node.energy.current / Math.max(1, node.energy.max)) * 100)}%` }}
+                          style={{ width: `${Math.min(100, node.attention)}%` }}
                         />
                       </div>
                     </div>
 
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {node.dna.keywords.slice(0, 3).map((keyword) => (
+                      {node.keywords.slice(0, 3).map((keyword) => (
                         <span key={keyword} className="text-2xs px-1.5 py-0.5 border border-border text-text-secondary uppercase">
                           {keyword}
                         </span>
@@ -534,7 +504,7 @@ export function Simulacra() {
                       <button
                         onClick={(event) => {
                           event.stopPropagation();
-                          feedNode(node.id, 10);
+                          feedNode(node.id, 15);
                         }}
                         className="h-6 px-2 border border-border bg-bg-primary text-2xs uppercase hover:bg-bg-elevated transition-colors"
                       >
@@ -622,7 +592,7 @@ export function Simulacra() {
           <span>Dormant: {ecosystemStats.dormant}</span>
           <span>Connections: {ecosystemStats.connections}</span>
           <span>Pollinations: {ecosystemStats.pollinations}</span>
-          <span>Avg Energy: {ecosystemStats.avgEnergy}</span>
+          <span>Avg Attention: {ecosystemStats.avgAttention}</span>
           <span>Zoom: {Math.round(zoom * 100)}%</span>
         </div>
       </main>
@@ -643,24 +613,26 @@ export function Simulacra() {
 
               <div className="grid grid-cols-2 gap-2 text-2xs">
                 <div className="border border-border bg-bg-secondary p-2">
-                  <div className="text-text-tertiary uppercase">Lifecycle</div>
-                  <div className="mt-1 uppercase">{selectedNode.lifecycle.stage}</div>
-                  <div className="text-text-secondary">{selectedNode.lifecycle.ageHours.toFixed(1)}h</div>
+                  <div className="text-text-tertiary uppercase">State</div>
+                  <div className="mt-1 uppercase">{selectedNode.state}</div>
+                  <div className="text-text-secondary">Created: {selectedNode.createdBy}</div>
                 </div>
                 <div className="border border-border bg-bg-secondary p-2">
-                  <div className="text-text-tertiary uppercase">Health</div>
-                  <div className="mt-1">{Math.round(selectedNode.lifecycle.health * 100)}%</div>
-                  <div className="text-text-secondary uppercase">{selectedNode.status}</div>
+                  <div className="text-text-tertiary uppercase">Attention</div>
+                  <div className="mt-1">{Math.round(selectedNode.attention)}%</div>
+                  <div className="text-text-secondary uppercase">{selectedNode.state}</div>
                 </div>
               </div>
 
               <div>
-                <div className="text-2xs text-text-secondary uppercase mb-1">DNA Traits</div>
+                <div className="text-2xs text-text-secondary uppercase mb-1">Domain & Keywords</div>
+                <div className="text-2xs text-text-secondary uppercase mb-1">
+                  Domain: {selectedNode.domain}
+                </div>
                 <div className="space-y-1">
-                  {selectedNode.dna.traits.slice(0, 5).map((trait) => (
-                    <div key={trait.name} className="flex justify-between text-2xs">
-                      <span className="text-text-tertiary uppercase">{trait.name}</span>
-                      <span>{Math.round(trait.value * 100)}% (h{Math.round(trait.heritability * 100)})</span>
+                  {selectedNode.keywords.slice(0, 5).map((keyword) => (
+                    <div key={keyword} className="text-2xs text-text-secondary">
+                      • {keyword}
                     </div>
                   ))}
                 </div>
@@ -669,7 +641,7 @@ export function Simulacra() {
               <div>
                 <div className="text-2xs text-text-secondary uppercase mb-1">Parents</div>
                 {selectedNode.parentIds.length === 0 ? (
-                  <div className="text-2xs text-text-tertiary">Root organism</div>
+                  <div className="text-2xs text-text-tertiary">Root idea</div>
                 ) : (
                   <div className="text-2xs text-text-secondary break-all">{selectedNode.parentIds.join(', ')}</div>
                 )}

@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { simulacraClient } from '@/lib/simulacraClient';
-import type { IdeaNode, PositionedIdeaNode, SimulacraSnapshot } from '@/modules/simulacra/types';
-import { assignNodePositions, createSeedEcosystem } from '@/modules/simulacra/services/simulacraService';
+import type { SimpleIdeaNode as IdeaNode, PositionedIdeaNode, SimpleSimulacraSnapshot as SimulacraSnapshot } from '@/modules/simulacra/types-simplified';
+import { SimpleSimulacraService } from '@/modules/simulacra/simple-simulacra-service';
 
 const FALLBACK_PROJECT_ID = 'global-simulacra';
 
 function initialSnapshot(projectId: string): SimulacraSnapshot {
   return {
     projectId,
-    ...createSeedEcosystem(projectId),
+    nodes: [],
+    connections: [],
+    pollinations: [],
+    agents: SimpleSimulacraService.createDefaultAgentsStatic(),
+    activity: [],
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -62,32 +67,19 @@ export function useSimulacra() {
     }
   }, [selectedNodeId, snapshot.nodes]);
 
-  const positionedNodes = useMemo<PositionedIdeaNode[]>(() => assignNodePositions(snapshot.nodes), [snapshot.nodes]);
+  const positionedNodes = useMemo<PositionedIdeaNode[]>(() => SimpleSimulacraService.assignNodePositionsStatic(snapshot.nodes), [snapshot.nodes]);
   const selectedNode = useMemo(
     () => snapshot.nodes.find((node) => node.id === selectedNodeId) || null,
     [snapshot.nodes, selectedNodeId]
   );
 
   const ecosystemStats = useMemo(() => {
-    const alive = snapshot.nodes.filter((node) => node.status !== 'archived').length;
-    const dormant = snapshot.nodes.filter((node) => node.status === 'dormant').length;
-    const avgEnergy = snapshot.nodes.length > 0
-      ? Math.round(snapshot.nodes.reduce((sum, node) => sum + node.energy.current, 0) / snapshot.nodes.length)
-      : 0;
-
-    return {
-      nodes: snapshot.nodes.length,
-      alive,
-      dormant,
-      connections: snapshot.connections.length,
-      pollinations: snapshot.pollinations.length,
-      avgEnergy,
-    };
+    return SimpleSimulacraService.calculateStatsStatic(snapshot.nodes, snapshot.connections, snapshot.pollinations);
   }, [snapshot]);
 
   const runAction = useCallback(async (
     payload:
-      | { action: 'createIdea'; content: string; parentId?: string; createdBy?: IdeaNode['createdBy'] }
+      | { action: 'createIdea'; content: string; parentIds?: string[]; createdBy?: IdeaNode['createdBy'] }
       | { action: 'feed'; nodeId: string; amount?: number }
       | { action: 'tick' }
       | { action: 'discover' }
@@ -108,14 +100,14 @@ export function useSimulacra() {
     return result.data;
   }, [projectId]);
 
-  const createIdea = useCallback(async (content: string, parentId?: string, createdBy: IdeaNode['createdBy'] = 'human') => {
+  const createIdea = useCallback(async (content: string, parentIds?: string[], createdBy: IdeaNode['createdBy'] = 'human') => {
     const trimmed = content.trim();
     if (!trimmed) return;
 
     const result = await runAction({
       action: 'createIdea',
       content: trimmed,
-      parentId,
+      parentIds,
       createdBy,
     });
 
@@ -125,7 +117,7 @@ export function useSimulacra() {
     }
   }, [runAction]);
 
-  const feedNode = useCallback((nodeId: string, amount = 12) => {
+  const feedNode = useCallback((nodeId: string, amount = 15) => {
     void runAction({ action: 'feed', nodeId, amount });
   }, [runAction]);
 
@@ -178,7 +170,7 @@ export function useSimulacra() {
   }, []);
 
   const submitDraftIdea = useCallback(() => {
-    void createIdea(draftIdea, selectedNodeId || undefined, 'human');
+    void createIdea(draftIdea, selectedNodeId ? [selectedNodeId] : undefined, 'human');
     setDraftIdea('');
   }, [createIdea, draftIdea, selectedNodeId]);
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { SimpleSimulacraSnapshot as SimulacraSnapshot } from '@/modules/simulacra/types-simplified';
 import { getSimulacraStore } from '@/server/simulacra/store';
 
 export const runtime = 'nodejs';
@@ -9,6 +10,19 @@ interface Params {
   };
 }
 
+// Need to pass API context for LLM integration
+const mockApi = {
+  config: {
+    agents: {
+      defaults: {
+        model: {
+          primary: process.env.NEXT_PUBLIC_MODEL || 'openai/gpt-4',
+        },
+      },
+    },
+  },
+};
+
 export async function GET(_: Request, { params }: Params) {
   const projectId = params.projectId;
   if (!projectId) {
@@ -16,8 +30,8 @@ export async function GET(_: Request, { params }: Params) {
   }
 
   try {
-    const store = getSimulacraStore();
-    const snapshot = store.getSnapshot(projectId);
+    const store = getSimulacraStore(mockApi);
+    const snapshot = await store.getSnapshot(projectId);
     return NextResponse.json({ ok: true, snapshot });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown Simulacra load error';
