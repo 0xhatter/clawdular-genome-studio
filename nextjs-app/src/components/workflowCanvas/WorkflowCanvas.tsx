@@ -7,7 +7,7 @@ import { CableLayer } from './CableLayer';
 import { PortRef, Point } from '@/types';
 import { cn } from '@/lib/utils';
 
-export function PatchBayCanvas() {
+export function WorkflowCanvas() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const { 
     patches, 
@@ -15,7 +15,6 @@ export function PatchBayCanvas() {
     currentPatchId, 
     selectedModuleId, 
     selectModule,
-    createConnection,
     removeConnection,
     executePatch,
     stopPatch,
@@ -24,8 +23,7 @@ export function PatchBayCanvas() {
     clonePatch,
   } = useAppStore();
 
-  const [connectingFrom, setConnectingFrom] = useState<PortRef | null>(null);
-  const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 });
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -35,41 +33,24 @@ export function PatchBayCanvas() {
   const currentPatch = currentPatchId ? patches[currentPatchId] : null;
 
   const handlePortClick = useCallback((portRef: PortRef, isOutput: boolean) => {
-    if (isOutput) {
-      // Start connection from output
-      setConnectingFrom(portRef);
-    } else if (connectingFrom) {
-      // Complete connection to input
-      if (currentPatchId) {
-        createConnection(currentPatchId, connectingFrom, portRef);
-      }
-      setConnectingFrom(null);
-    }
-  }, [connectingFrom, currentPatchId, createConnection]);
+    void portRef;
+    void isOutput;
+    setSelectedConnectionId(null);
+  }, []);
 
   const handleCanvasClick = useCallback(() => {
     if (suppressCanvasClickRef.current) {
       suppressCanvasClickRef.current = false;
       return;
     }
-    setConnectingFrom(null);
+    setSelectedConnectionId(null);
     selectModule(null);
   }, [selectModule]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      setMousePos({
-        x: (e.clientX - rect.left - pan.x) / zoom,
-        y: (e.clientY - rect.top - pan.y) / zoom
-      });
-    }
-  }, [zoom, pan.x, pan.y]);
-
-  const handleConnectionDelete = useCallback((connectionId: string) => {
-    if (!currentPatchId) return;
-    removeConnection(currentPatchId, connectionId);
-  }, [currentPatchId, removeConnection]);
+  const handleConnectionClick = useCallback((connectionId: string) => {
+    setSelectedConnectionId((current) => (current === connectionId ? null : connectionId));
+    selectModule(null);
+  }, [selectModule]);
 
   const handleWheel = useCallback((event: React.WheelEvent) => {
     if (event.ctrlKey || event.metaKey) {
@@ -112,24 +93,33 @@ export function PatchBayCanvas() {
     };
   }, []);
 
+  useEffect(() => {
+    setSelectedConnectionId(null);
+  }, [currentPatchId]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selectedConnectionId && currentPatchId) {
+        removeConnection(currentPatchId, selectedConnectionId);
+        setSelectedConnectionId(null);
+        return;
+      }
       if (selectedModuleId && currentPatchId) {
         removeModule(currentPatchId, selectedModuleId);
       }
     }
     if (e.key === 'Escape') {
-      setConnectingFrom(null);
+      setSelectedConnectionId(null);
       selectModule(null);
     }
-  }, [selectedModuleId, currentPatchId, removeModule, selectModule]);
+  }, [selectedConnectionId, currentPatchId, selectedModuleId, removeConnection, removeModule, selectModule]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Create a demo patch if none exists
+  // Create a demo workflow if none exists
   useEffect(() => {
     if (!hasHydrated) return;
 
@@ -185,7 +175,7 @@ export function PatchBayCanvas() {
       >
         <div className="absolute inset-0 bg-grid-major" />
         <div className="absolute inset-0 flex items-center justify-center text-text-tertiary text-xs uppercase tracking-wide">
-          SELECT OR CREATE A PATCH TO BEGIN
+          SELECT OR CREATE A WORKFLOW TO BEGIN
         </div>
       </div>
     );
@@ -196,7 +186,6 @@ export function PatchBayCanvas() {
       ref={canvasRef}
       className="flex-1 relative overflow-hidden bg-bg-primary bg-grid cursor-grab active:cursor-grabbing"
       onClick={handleCanvasClick}
-      onMouseMove={handleMouseMove}
       onWheel={handleWheel}
     >
       <div
@@ -227,11 +216,9 @@ export function PatchBayCanvas() {
         <CableLayer
           modules={currentPatch.modules}
           connections={currentPatch.connections}
-          onConnectionClick={handleConnectionDelete}
-          previewConnection={connectingFrom ? {
-            from: connectingFrom,
-            to: mousePos
-          } : null}
+          onConnectionClick={handleConnectionClick}
+          selectedConnectionId={selectedConnectionId}
+          previewConnection={null}
         />
 
         {/* Modules */}
@@ -242,7 +229,7 @@ export function PatchBayCanvas() {
             isSelected={selectedModuleId === module.id}
             onSelect={() => selectModule(module.id)}
             onPortClick={handlePortClick}
-            connectingFrom={connectingFrom}
+            connectingFrom={null}
             viewportScale={zoom}
           />
         ))}
@@ -354,36 +341,13 @@ export function PatchBayCanvas() {
         Reset Pan
       </button>
 
-      {currentPatch.connections.length > 0 && (
-        <div className="absolute top-4 right-4 w-72 border border-border bg-bg-tertiary/95 backdrop-blur-sm">
-          <div className="h-7 px-3 border-b border-border flex items-center justify-between text-2xs uppercase tracking-wide">
-            <span>Connections</span>
-            <span className="text-text-secondary">Click line to remove</span>
-          </div>
-          <div className="max-h-40 overflow-y-auto">
-            {currentPatch.connections.map((connection) => (
-              <button
-                key={connection.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleConnectionDelete(connection.id);
-                }}
-                className="w-full px-3 py-2 text-left text-2xs border-b border-border last:border-b-0 hover:bg-bg-elevated transition-colors"
-              >
-                <span className="text-text-secondary">{truncateConnection(connection.id)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="absolute bottom-20 right-4 text-2xs text-text-secondary uppercase tracking-wide pointer-events-none">
-        {isPanning ? 'PANNING…' : 'Hold Left-Drag Empty Space to Pan'}
+        {selectedConnectionId
+          ? 'CONNECTION SELECTED · PRESS DELETE TO REMOVE'
+          : isPanning
+            ? 'PANNING…'
+            : 'CLICK A CONNECTOR THEN PRESS DELETE'}
       </div>
     </div>
   );
-}
-
-function truncateConnection(id: string) {
-  return `CONN_${id.slice(0, 6).toUpperCase()}`;
 }

@@ -26,6 +26,7 @@ module.exports = {
       fontFamily: {
         mono: ['IBM Plex Mono', 'Courier New', 'monospace'],
         sans: ['Inter', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'press-start': ['var(--font-press-start)', 'monospace'],
       },
       fontSize: {
         '2xs': '10px',

@@ -13,7 +13,9 @@ import {
   ViewType,
   SkillDefinition 
 } from '@/types';
+import type { RhizomeRuntimeEvent } from '@/types/rhizome';
 import { generateUUID, incrementVersion } from '@/lib/utils';
+import { migrateMarkdownToRhizome } from '@/lib/migrateMarkdownToRhizome';
 import { openclawdClient, type RuntimeModuleEvent } from '@/lib/openclawd';
 
 interface AppState {
@@ -29,6 +31,7 @@ interface AppState {
   patches: Record<string, Patch>;
   currentPatchId: string | null;
   selectedModuleId: string | null;
+  runtimeEventMemory: Record<string, RhizomeRuntimeEvent[]>;
   undoStack: HistorySnapshot[];
   redoStack: HistorySnapshot[];
   
@@ -67,6 +70,12 @@ interface AppState {
   skillLibrary: SkillDefinition[];
   loadSkillLibrary: () => void;
   initializeRuntimeEvents: () => void;
+  clearRuntimeEventMemory: (patchId: string) => void;
+  importRhizomeMarkdownMemory: (
+    patchId: string,
+    markdown: string,
+    options?: { replace?: boolean }
+  ) => { ok: boolean; importedActivity: number; importedRuntime: number; error?: string };
   exportCurrentPatchJSON: () => string | null;
   importPatchFromJSON: (json: string) => { ok: boolean; error?: string };
 
@@ -77,6 +86,7 @@ interface AppState {
 
 interface HistorySnapshot {
   patches: Record<string, Patch>;
+  runtimeEventMemory: Record<string, RhizomeRuntimeEvent[]>;
   currentPatchId: string | null;
   selectedModuleId: string | null;
 }
@@ -87,7 +97,7 @@ let runtimeEventsUnsubscribe: null | (() => void) = null;
 const defaultSkills: SkillDefinition[] = [
   {
     id: 'gmail-trigger',
-    name: 'GMAIL_TRIGGER',
+    name: 'Email Trigger',
     version: '1.0.0',
     category: 'input',
     chromosomes: {
@@ -105,17 +115,17 @@ const defaultSkills: SkillDefinition[] = [
     },
     inputs: [],
     outputs: [
-      { name: 'EMAIL_DATA', type: 'data', dataType: 'object', isInput: false },
-      { name: 'ATTACHMENTS', type: 'data', dataType: 'stream', isInput: false }
+      { name: 'Email Data', type: 'data', dataType: 'object', isInput: false },
+      { name: 'Attachments', type: 'data', dataType: 'stream', isInput: false }
     ],
     parameters: [
-      { name: 'FILTER_FROM', type: 'text', value: '' },
-      { name: 'FILTER_SUBJECT', type: 'text', value: '' }
+      { name: 'From Filter', type: 'text', value: '' },
+      { name: 'Subject Filter', type: 'text', value: '' }
     ]
   },
   {
     id: 'slack-notify',
-    name: 'SLACK_NOTIFY',
+    name: 'Slack Notifier',
     version: '1.0.0',
     category: 'output',
     chromosomes: {
@@ -129,20 +139,20 @@ const defaultSkills: SkillDefinition[] = [
       }
     },
     inputs: [
-      { name: 'MESSAGE', type: 'data', dataType: 'string', isInput: true },
-      { name: 'IMAGE', type: 'data', dataType: 'stream', isInput: true }
+      { name: 'Message', type: 'data', dataType: 'string', isInput: true },
+      { name: 'Image', type: 'data', dataType: 'stream', isInput: true }
     ],
     outputs: [
-      { name: 'SENT_OK', type: 'data', dataType: 'boolean', isInput: false }
+      { name: 'Sent', type: 'data', dataType: 'boolean', isInput: false }
     ],
     parameters: [
-      { name: 'CHANNEL', type: 'text', value: '#dev' },
-      { name: 'MENTION', type: 'toggle', value: false }
+      { name: 'Channel', type: 'text', value: '#dev' },
+      { name: 'Mention Team', type: 'toggle', value: false }
     ]
   },
   {
     id: 'text-processor',
-    name: 'TEXT_PROCESSOR',
+    name: 'Text Processor',
     version: '1.0.0',
     category: 'process',
     chromosomes: {
@@ -158,21 +168,21 @@ const defaultSkills: SkillDefinition[] = [
       }
     },
     inputs: [
-      { name: 'INPUT_TXT', type: 'data', dataType: 'string', isInput: true },
-      { name: 'REGEX', type: 'data', dataType: 'string', isInput: true }
+      { name: 'Input Text', type: 'data', dataType: 'string', isInput: true },
+      { name: 'Pattern', type: 'data', dataType: 'string', isInput: true }
     ],
     outputs: [
-      { name: 'OUTPUT', type: 'data', dataType: 'string', isInput: false },
-      { name: 'ERROR', type: 'data', dataType: 'string', isInput: false }
+      { name: 'Output Text', type: 'data', dataType: 'string', isInput: false },
+      { name: 'Error Message', type: 'data', dataType: 'string', isInput: false }
     ],
     parameters: [
-      { name: 'MODE', type: 'select', value: 'extract', options: ['extract', 'replace', 'split'] },
-      { name: 'CASE_SENSITIVE', type: 'toggle', value: true }
+      { name: 'Mode', type: 'select', value: 'extract', options: ['extract', 'replace', 'split'] },
+      { name: 'Case Sensitive', type: 'toggle', value: true }
     ]
   },
   {
     id: 'summarize',
-    name: 'SUMMARIZE',
+    name: 'Summarizer',
     version: '1.0.0',
     category: 'process',
     chromosomes: {
@@ -186,19 +196,75 @@ const defaultSkills: SkillDefinition[] = [
       }
     },
     inputs: [
-      { name: 'TEXT', type: 'data', dataType: 'string', isInput: true }
+      { name: 'Text', type: 'data', dataType: 'string', isInput: true }
     ],
     outputs: [
-      { name: 'SUMMARY', type: 'data', dataType: 'string', isInput: false }
+      { name: 'Summary', type: 'data', dataType: 'string', isInput: false }
     ],
     parameters: [
-      { name: 'MAX_LENGTH', type: 'slider', value: 200, range: { min: 50, max: 500 } },
-      { name: 'BULLET_POINTS', type: 'toggle', value: false }
+      { name: 'Max Length', type: 'slider', value: 200, range: { min: 50, max: 500 } },
+      { name: 'Bullet Points', type: 'toggle', value: false }
+    ]
+  },
+  {
+    id: 'if-condition',
+    name: 'If Condition',
+    version: '1.0.0',
+    category: 'logic',
+    chromosomes: {
+      trigger: { patterns: [], filters: [] },
+      action: {
+        operations: [{ type: 'branch_if', config: { operator: 'contains' } }]
+      },
+      behavior: {
+        rateLimit: { max: 500, window: '1m' },
+        retryPolicy: { maxRetries: 1, backoff: 'fixed' }
+      }
+    },
+    inputs: [
+      { name: 'Value', type: 'data', dataType: 'any', isInput: true },
+      { name: 'Matcher', type: 'data', dataType: 'string', isInput: true }
+    ],
+    outputs: [
+      { name: 'True Path', type: 'trigger', dataType: 'boolean', isInput: false },
+      { name: 'False Path', type: 'trigger', dataType: 'boolean', isInput: false }
+    ],
+    parameters: [
+      { name: 'Operator', type: 'select', value: 'contains', options: ['contains', 'equals', 'regex'] },
+      { name: 'Case Sensitive', type: 'toggle', value: false }
+    ]
+  },
+  {
+    id: 'router-switch',
+    name: 'Router Switch',
+    version: '1.0.0',
+    category: 'logic',
+    chromosomes: {
+      trigger: { patterns: [], filters: [] },
+      action: {
+        operations: [{ type: 'route', config: { strategy: 'first-match' } }]
+      },
+      behavior: {
+        rateLimit: { max: 800, window: '1m' },
+        retryPolicy: { maxRetries: 1, backoff: 'fixed' }
+      }
+    },
+    inputs: [
+      { name: 'Payload', type: 'data', dataType: 'object', isInput: true }
+    ],
+    outputs: [
+      { name: 'Route A', type: 'trigger', dataType: 'boolean', isInput: false },
+      { name: 'Route B', type: 'trigger', dataType: 'boolean', isInput: false },
+      { name: 'Fallback', type: 'trigger', dataType: 'boolean', isInput: false }
+    ],
+    parameters: [
+      { name: 'Match Key', type: 'text', value: 'type' },
+      { name: 'Default Route', type: 'select', value: 'fallback', options: ['route_a', 'route_b', 'fallback'] }
     ]
   },
   {
     id: 'rss-feed',
-    name: 'RSS_FEED',
+    name: 'RSS Feed',
     version: '1.0.0',
     category: 'input',
     chromosomes: {
@@ -216,16 +282,16 @@ const defaultSkills: SkillDefinition[] = [
     },
     inputs: [],
     outputs: [
-      { name: 'ARTICLES', type: 'data', dataType: 'object', isInput: false }
+      { name: 'Articles', type: 'data', dataType: 'object', isInput: false }
     ],
     parameters: [
-      { name: 'URL', type: 'text', value: '' },
-      { name: 'MAX_ITEMS', type: 'slider', value: 10, range: { min: 1, max: 50 } }
+      { name: 'Feed URL', type: 'text', value: '' },
+      { name: 'Max Items', type: 'slider', value: 10, range: { min: 1, max: 50 } }
     ]
   },
   {
     id: 'notion-export',
-    name: 'NOTION_EXPORT',
+    name: 'Notion Exporter',
     version: '1.0.0',
     category: 'output',
     chromosomes: {
@@ -239,18 +305,53 @@ const defaultSkills: SkillDefinition[] = [
       }
     },
     inputs: [
-      { name: 'CONTENT', type: 'data', dataType: 'object', isInput: true },
-      { name: 'TITLE', type: 'data', dataType: 'string', isInput: true }
+      { name: 'Content', type: 'data', dataType: 'object', isInput: true },
+      { name: 'Title', type: 'data', dataType: 'string', isInput: true }
     ],
     outputs: [
-      { name: 'PAGE_URL', type: 'data', dataType: 'string', isInput: false }
+      { name: 'Page URL', type: 'data', dataType: 'string', isInput: false }
     ],
     parameters: [
-      { name: 'DATABASE_ID', type: 'text', value: '' },
-      { name: 'TAGS', type: 'text', value: '' }
+      { name: 'Database ID', type: 'text', value: '' },
+      { name: 'Tags', type: 'text', value: '' }
     ]
   }
 ];
+
+function getPinnedLogicSkillIds(): string[] {
+  const configured = process.env.NEXT_PUBLIC_OPENCLAWD_LOGIC_SKILL_IDS?.trim();
+  if (!configured) return [];
+
+  return Array.from(
+    new Set(
+      configured
+        .split(',')
+        .map((skillId) => skillId.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function applyPinnedLogicSkillSelection(skills: SkillDefinition[]): SkillDefinition[] {
+  const pinnedLogicIds = getPinnedLogicSkillIds();
+  if (pinnedLogicIds.length === 0) return skills;
+
+  const skillById = new Map(skills.map((skill) => [skill.id, skill]));
+  const pinnedLogicSkills = pinnedLogicIds
+    .map((skillId) => skillById.get(skillId))
+    .filter((skill): skill is SkillDefinition => Boolean(skill));
+
+  const nonLogicSkills = skills.filter((skill) => skill.category !== 'logic');
+  const availablePinnedIds = new Set(pinnedLogicSkills.map((skill) => skill.id));
+  const unresolvedIds = pinnedLogicIds.filter((skillId) => !availablePinnedIds.has(skillId));
+
+  if (unresolvedIds.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn('OpenClaw logic skills missing from registry:', unresolvedIds.join(', '));
+  }
+
+  return [...nonLogicSkills, ...pinnedLogicSkills];
+}
 
 // Helper to create default genome
 function createDefaultGenome(skill: SkillDefinition): Genome {
@@ -312,9 +413,12 @@ function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function createHistorySnapshot(state: Pick<AppState, 'patches' | 'currentPatchId' | 'selectedModuleId'>): HistorySnapshot {
+function createHistorySnapshot(
+  state: Pick<AppState, 'patches' | 'runtimeEventMemory' | 'currentPatchId' | 'selectedModuleId'>
+): HistorySnapshot {
   return {
     patches: deepClone(state.patches),
+    runtimeEventMemory: deepClone(state.runtimeEventMemory),
     currentPatchId: state.currentPatchId,
     selectedModuleId: state.selectedModuleId,
   };
@@ -335,6 +439,30 @@ function addActivity(patch: Patch, action: string, status: ActivityEvent['status
 
   if (patch.activityLog.length > 100) {
     patch.activityLog = patch.activityLog.slice(0, 100);
+  }
+}
+
+function addRuntimeEventMemory(
+  runtimeEventMemory: Record<string, RhizomeRuntimeEvent[]>,
+  patchId: string,
+  event: RuntimeModuleEvent
+) {
+  if (!runtimeEventMemory[patchId]) {
+    runtimeEventMemory[patchId] = [];
+  }
+
+  runtimeEventMemory[patchId].unshift({
+    id: generateUUID(),
+    patchId,
+    moduleId: event.moduleId,
+    timestamp: Date.now(),
+    executionState: event.executionState,
+    triggerActive: event.triggerActive,
+    lastExecutionSuccess: event.lastExecutionSuccess,
+  });
+
+  if (runtimeEventMemory[patchId].length > 220) {
+    runtimeEventMemory[patchId] = runtimeEventMemory[patchId].slice(0, 220);
   }
 }
 
@@ -399,10 +527,11 @@ export const useAppStore = create<AppState>()(
   persist(
     immer((set, get) => ({
     // Initial state
-    currentView: 'patchbay',
+    currentView: 'workflowCanvas',
     patches: {},
     currentPatchId: null,
     selectedModuleId: null,
+    runtimeEventMemory: {},
     undoStack: [],
     redoStack: [],
     skillLibrary: defaultSkills,
@@ -419,6 +548,7 @@ export const useAppStore = create<AppState>()(
         state.undoStack = state.undoStack.slice(0, -1);
         state.redoStack.push(current);
         state.patches = previous.patches;
+        state.runtimeEventMemory = previous.runtimeEventMemory;
         state.currentPatchId = previous.currentPatchId;
         state.selectedModuleId = previous.selectedModuleId;
       });
@@ -432,6 +562,7 @@ export const useAppStore = create<AppState>()(
         state.redoStack = state.redoStack.slice(0, -1);
         state.undoStack.push(current);
         state.patches = next.patches;
+        state.runtimeEventMemory = next.runtimeEventMemory;
         state.currentPatchId = next.currentPatchId;
         state.selectedModuleId = next.selectedModuleId;
       });
@@ -471,6 +602,7 @@ export const useAppStore = create<AppState>()(
         if (state.undoStack.length > 50) state.undoStack.shift();
         state.redoStack = [];
         state.patches[patch.id] = patch;
+        state.runtimeEventMemory[patch.id] = [];
         state.currentPatchId = patch.id;
         addActivity(patch, 'PATCH_CREATED', 'SUCCESS');
       });
@@ -567,6 +699,7 @@ export const useAppStore = create<AppState>()(
         if (state.undoStack.length > 50) state.undoStack.shift();
         state.redoStack = [];
         state.patches[clonedPatch.id] = clonedPatch;
+        state.runtimeEventMemory[clonedPatch.id] = [];
         state.currentPatchId = clonedPatch.id;
         state.selectedModuleId = null;
         addActivity(clonedPatch, 'PATCH_CLONED', 'SUCCESS');
@@ -602,6 +735,7 @@ export const useAppStore = create<AppState>()(
         if (state.undoStack.length > 50) state.undoStack.shift();
         state.redoStack = [];
         delete state.patches[patchId];
+        delete state.runtimeEventMemory[patchId];
         if (state.currentPatchId === patchId) {
           state.currentPatchId = null;
         }
@@ -1167,8 +1301,9 @@ export const useAppStore = create<AppState>()(
         const result = await openclawdClient.listSkills();
         if (!result.ok || result.data.length === 0) return;
 
+        const filteredSkills = applyPinnedLogicSkillSelection(result.data);
         set((state) => {
-          state.skillLibrary = result.data;
+          state.skillLibrary = filteredSkills;
         });
       })();
     },
@@ -1179,16 +1314,83 @@ export const useAppStore = create<AppState>()(
           if (event.patchId) {
             const patch = state.patches[event.patchId];
             if (patch) {
-              applyRuntimeEventToPatch(patch, event);
+              const applied = applyRuntimeEventToPatch(patch, event);
+              if (applied) {
+                addRuntimeEventMemory(state.runtimeEventMemory, patch.id, event);
+              }
             }
             return;
           }
 
           Object.values(state.patches).forEach((patch) => {
-            applyRuntimeEventToPatch(patch, event);
+            const applied = applyRuntimeEventToPatch(patch, event);
+            if (applied) {
+              addRuntimeEventMemory(state.runtimeEventMemory, patch.id, event);
+            }
           });
         });
       });
+    },
+    clearRuntimeEventMemory: (patchId) => {
+      set((state) => {
+        state.runtimeEventMemory[patchId] = [];
+      });
+    },
+    importRhizomeMarkdownMemory: (patchId, markdown, options) => {
+      const patch = get().patches[patchId];
+      if (!patch) {
+        return {
+          ok: false,
+          importedActivity: 0,
+          importedRuntime: 0,
+          error: 'Patch not found',
+        };
+      }
+
+      const trimmed = markdown.trim();
+      if (!trimmed) {
+        return {
+          ok: false,
+          importedActivity: 0,
+          importedRuntime: 0,
+          error: 'Markdown input is empty',
+        };
+      }
+
+      const migrated = migrateMarkdownToRhizome(trimmed, patch);
+      const replace = Boolean(options?.replace);
+
+      set((state) => {
+        const draftPatch = state.patches[patchId];
+        if (!draftPatch) return;
+
+        state.undoStack.push(createHistorySnapshot(state));
+        if (state.undoStack.length > 50) state.undoStack.shift();
+        state.redoStack = [];
+
+        const nextActivity = replace
+          ? migrated.activityEvents
+          : [...migrated.activityEvents, ...(draftPatch.activityLog || [])];
+        draftPatch.activityLog = nextActivity.slice(0, 100);
+
+        const nextRuntime = replace
+          ? migrated.runtimeEvents
+          : [...migrated.runtimeEvents, ...(state.runtimeEventMemory[patchId] || [])];
+        state.runtimeEventMemory[patchId] = nextRuntime.slice(0, 220);
+
+        draftPatch.updatedAt = Date.now();
+        addActivity(
+          draftPatch,
+          `RHIZOME_MD_IMPORTED:A${migrated.activityEvents.length}:R${migrated.runtimeEvents.length}`,
+          'SUCCESS'
+        );
+      });
+
+      return {
+        ok: true,
+        importedActivity: migrated.activityEvents.length,
+        importedRuntime: migrated.runtimeEvents.length,
+      };
     },
     exportCurrentPatchJSON: () => {
       const state = get();
@@ -1207,6 +1409,7 @@ export const useAppStore = create<AppState>()(
           if (state.undoStack.length > 50) state.undoStack.shift();
           state.redoStack = [];
           state.patches[importedPatch.id] = importedPatch;
+          state.runtimeEventMemory[importedPatch.id] = [];
           state.currentPatchId = importedPatch.id;
           state.selectedModuleId = importedPatch.modules[0]?.id ?? null;
           addActivity(importedPatch, 'PATCH_IMPORTED', 'SUCCESS');
@@ -1230,8 +1433,15 @@ export const useAppStore = create<AppState>()(
       selectedModuleId: state.selectedModuleId,
       currentView: state.currentView,
       skillLibrary: state.skillLibrary,
+      runtimeEventMemory: state.runtimeEventMemory,
     }),
     onRehydrateStorage: () => (state) => {
+      if (state && (state.currentView as unknown as string) === 'patchbay') {
+        state.setView('workflowCanvas');
+      }
+      if (state && (state.currentView as unknown as string) === 'connectome') {
+        state.setView('rhizome');
+      }
       state?.setHasHydrated(true);
     },
   }

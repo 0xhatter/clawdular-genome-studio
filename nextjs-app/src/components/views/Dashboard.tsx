@@ -1,25 +1,74 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
 
 export function Dashboard() {
-  const { patches, loadPatch, createPatch, setView } = useAppStore();
+  const { patches, loadPatch, createPatch, setView, deletePatch, updatePatch } = useAppStore();
+  const [selectedPatchIds, setSelectedPatchIds] = useState<string[]>([]);
+  const [renamingPatchId, setRenamingPatchId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const patchList = Object.values(patches);
-  const recentActivity = patchList
-    .flatMap((patch) => patch.activityLog || [])
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 12);
+
+  useEffect(() => {
+    const availablePatchIds = new Set(patchList.map((patch) => patch.id));
+    setSelectedPatchIds((prev) => prev.filter((id) => availablePatchIds.has(id)));
+  }, [patchList]);
 
   const handleCreatePatch = () => {
     const newPatch = createPatch(`PATCH_${String(patchList.length + 1).padStart(3, '0')}`);
     loadPatch(newPatch.id);
-    setView('patchbay');
+    setView('workflowCanvas');
   };
 
   const handleOpenPatch = (patchId: string) => {
     loadPatch(patchId);
-    setView('patchbay');
+    setView('workflowCanvas');
+  };
+
+  const handleTogglePatchSelection = (patchId: string) => {
+    setSelectedPatchIds((prev) => (
+      prev.includes(patchId)
+        ? prev.filter((id) => id !== patchId)
+        : [...prev, patchId]
+    ));
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedPatchIds.length === 0) return;
+    selectedPatchIds.forEach((patchId) => deletePatch(patchId));
+    setSelectedPatchIds([]);
+    if (renamingPatchId && selectedPatchIds.includes(renamingPatchId)) {
+      setRenamingPatchId(null);
+      setRenameDraft('');
+    }
+  };
+
+  const selectedCount = selectedPatchIds.length;
+  const selectedCountLabel = useMemo(
+    () => String(selectedCount).padStart(2, '0'),
+    [selectedCount]
+  );
+
+  const startRename = (patchId: string, patchName: string) => {
+    setRenamingPatchId(patchId);
+    setRenameDraft(patchName);
+  };
+
+  const commitRename = (patchId: string, previousName: string) => {
+    const nextName = renameDraft.trim().toUpperCase();
+    if (!nextName) {
+      setRenamingPatchId(null);
+      setRenameDraft('');
+      return;
+    }
+
+    if (nextName !== previousName) {
+      updatePatch(patchId, { name: nextName });
+    }
+    setRenamingPatchId(null);
+    setRenameDraft('');
   };
 
   return (
@@ -29,7 +78,7 @@ export function Dashboard() {
         <div className="mb-8">
           <h1 className="text-lg tracking-widest uppercase mb-2">Dashboard</h1>
           <p className="text-text-secondary text-xs">
-            MANAGE YOUR PATCHES AND WORKFLOWS
+            MANAGE YOUR SKILL WORKFLOWS
           </p>
         </div>
 
@@ -37,7 +86,7 @@ export function Dashboard() {
         <div className="grid grid-cols-4 gap-4 mb-8">
           <div className="border border-border bg-bg-secondary p-4">
             <div className="text-2xs text-text-secondary uppercase tracking-wide mb-1">
-              Total Patches
+              Total Workflows
             </div>
             <div className="text-2xl font-mono">
               {String(patchList.length).padStart(3, '0')}
@@ -72,27 +121,46 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Patches Grid */}
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm tracking-wide uppercase">Your Patches</h2>
-          <button
-            onClick={handleCreatePatch}
-            className="h-8 px-4 border border-border bg-bg-primary text-2xs tracking-wide uppercase hover:bg-bg-elevated hover:text-text-primary transition-colors"
-          >
-            [+] NEW PATCH
-          </button>
+        {/* Workflows Grid */}
+        <div className="mb-4 sticky top-0 z-20 bg-bg-primary py-2 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm tracking-wide uppercase">Your Workflows</h2>
+            <span className="text-2xs text-text-secondary uppercase">
+              SELECTED:{selectedCountLabel}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDeleteSelected}
+              disabled={selectedCount === 0}
+              className={cn(
+                'h-8 px-4 border border-border bg-bg-primary text-2xs tracking-wide uppercase transition-colors',
+                selectedCount === 0
+                  ? 'opacity-50 cursor-not-allowed text-text-tertiary'
+                  : 'hover:bg-bg-elevated hover:text-text-primary'
+              )}
+            >
+              [−] DELETE SELECTED
+            </button>
+            <button
+              onClick={handleCreatePatch}
+              className="h-8 px-4 border border-border bg-bg-primary text-2xs tracking-wide uppercase hover:bg-bg-elevated hover:text-text-primary transition-colors"
+            >
+              [+] NEW WORKFLOW
+            </button>
+          </div>
         </div>
 
         {patchList.length === 0 ? (
           <div className="border border-border bg-bg-secondary p-12 text-center">
             <div className="text-text-tertiary text-xs uppercase tracking-wide mb-4">
-              NO PATCHES FOUND
+              NO WORKFLOWS FOUND
             </div>
             <button
               onClick={handleCreatePatch}
               className="h-8 px-4 border border-border bg-bg-primary text-2xs tracking-wide uppercase hover:bg-bg-elevated hover:text-text-primary transition-colors"
             >
-              CREATE YOUR FIRST PATCH
+              CREATE YOUR FIRST WORKFLOW
             </button>
           </div>
         ) : (
@@ -102,11 +170,27 @@ export function Dashboard() {
                 key={patch.id}
                 onClick={() => handleOpenPatch(patch.id)}
                 className={cn(
-                  'border border-border bg-bg-secondary p-4 cursor-pointer',
-                  'hover:border-border-light transition-colors'
+                  'border border-border bg-bg-secondary p-4 cursor-pointer relative',
+                  'hover:border-border-light transition-colors',
+                  selectedPatchIds.includes(patch.id) && 'border-border-light'
                 )}
               >
-                {/* Patch visual thumbnail */}
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleTogglePatchSelection(patch.id);
+                  }}
+                  className={cn(
+                    'absolute top-2 right-2 z-20 w-5 h-5 border border-border bg-bg-primary text-2xs font-mono',
+                    'hover:bg-bg-elevated transition-colors',
+                    selectedPatchIds.includes(patch.id) && 'border-text-primary text-text-primary'
+                  )}
+                  title={selectedPatchIds.includes(patch.id) ? 'Deselect workflow' : 'Select workflow'}
+                >
+                  {selectedPatchIds.includes(patch.id) ? '✓' : ''}
+                </button>
+
+                {/* Workflow visual thumbnail */}
                 <div className="h-24 bg-bg-primary border border-border mb-4 relative overflow-hidden">
                   {/* Mini module representation */}
                   {patch.modules.slice(0, 4).map((module, i) => (
@@ -126,9 +210,41 @@ export function Dashboard() {
                   )}
                 </div>
 
-                {/* Patch info */}
+                {/* Workflow info */}
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-xs uppercase">{patch.name}</span>
+                  {renamingPatchId === patch.id ? (
+                    <input
+                      autoFocus
+                      value={renameDraft}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => setRenameDraft(event.target.value.toUpperCase())}
+                      onBlur={() => commitRename(patch.id, patch.name)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          commitRename(patch.id, patch.name);
+                        }
+                        if (event.key === 'Escape') {
+                          setRenamingPatchId(null);
+                          setRenameDraft('');
+                        }
+                      }}
+                      className="h-7 w-full max-w-[140px] bg-bg-primary border border-border text-xs font-mono uppercase px-2 outline-none focus:border-accent"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(event) => event.stopPropagation()}
+                      onDoubleClick={(event) => {
+                        event.stopPropagation();
+                        startRename(patch.id, patch.name);
+                      }}
+                      className="font-mono text-xs uppercase truncate max-w-[140px] text-left"
+                      title="Double-click to rename"
+                    >
+                      {patch.name}
+                    </button>
+                  )}
                   <span className={cn(
                     'text-2xs',
                     patch.isRunning ? 'text-text-primary' : 'text-text-tertiary'
@@ -158,46 +274,11 @@ export function Dashboard() {
             >
               <div className="text-4xl text-text-tertiary mb-2">+</div>
               <span className="text-2xs uppercase tracking-wide text-text-secondary">
-                Create New Patch
+                Create New Workflow
               </span>
             </button>
           </div>
         )}
-
-        {/* Recent Activity */}
-        <div className="mt-8">
-          <h2 className="text-sm tracking-wide uppercase mb-4">Recent Activity</h2>
-          <div className="border border-border bg-bg-secondary">
-            <div className="grid grid-cols-4 gap-4 p-3 border-b border-border text-2xs text-text-secondary uppercase tracking-wide">
-              <span>Time</span>
-              <span>Action</span>
-              <span>Patch</span>
-              <span>Status</span>
-            </div>
-            {recentActivity.map((event) => (
-              <div
-                key={event.id}
-                className="grid grid-cols-4 gap-4 p-3 border-b border-border last:border-b-0 text-xs hover:bg-bg-elevated transition-colors"
-              >
-                <span className="font-mono text-text-secondary">
-                  {new Date(event.timestamp).toISOString().split('T')[1].split('.')[0]}
-                </span>
-                <span className="uppercase">
-                  {event.action}
-                </span>
-                <span className="font-mono uppercase">{event.patchName}</span>
-                <span className={event.status === 'SUCCESS' ? 'text-text-primary' : 'text-text-secondary'}>
-                  {event.status}
-                </span>
-              </div>
-            ))}
-            {recentActivity.length === 0 && (
-              <div className="p-8 text-center text-text-tertiary text-xs uppercase">
-                NO ACTIVITY YET
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

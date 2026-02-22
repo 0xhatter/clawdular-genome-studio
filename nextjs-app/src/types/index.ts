@@ -172,7 +172,7 @@ export interface ExecutionMetrics {
   recoveredErrors: number;
 }
 
-export type ViewType = 'dashboard' | 'patchbay' | 'genome' | 'evolution';
+export type ViewType = 'dashboard' | 'workflowCanvas' | 'genome' | 'rhizome' | 'simulacra' | 'evolution';
 
 export interface SkillDefinition {
   id: string;

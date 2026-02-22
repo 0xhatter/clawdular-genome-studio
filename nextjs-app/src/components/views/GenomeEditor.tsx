@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { cn, incrementVersion, truncateId } from '@/lib/utils';
 import { GeneGrowthCanvas } from '@/components/genome';
@@ -22,6 +22,8 @@ export function GenomeEditor() {
   const [mutationIntensity, setMutationIntensity] = useState(0.3);
   const [editorValue, setEditorValue] = useState('');
   const [editorError, setEditorError] = useState<string | null>(null);
+  const visualCanvasWrapRef = useRef<HTMLDivElement>(null);
+  const [visualCanvasWidth, setVisualCanvasWidth] = useState(860);
 
   const currentPatch = currentPatchId ? patches[currentPatchId] : null;
   const selectedModule = selectedModuleId && currentPatch
@@ -39,6 +41,22 @@ export function GenomeEditor() {
     setEditorValue(JSON.stringify(chromosome, null, 2));
     setEditorError(null);
   }, [activeChromosome, selectedModule, chromosome]);
+
+  useEffect(() => {
+    if (viewMode !== 'visual') return;
+    const node = visualCanvasWrapRef.current;
+    if (!node) return;
+
+    const updateWidth = () => {
+      const measuredWidth = Math.max(560, Math.floor(node.clientWidth - 32));
+      setVisualCanvasWidth(measuredWidth);
+    };
+
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [viewMode]);
 
   if (!selectedModule) {
     return (
@@ -124,7 +142,7 @@ export function GenomeEditor() {
   return (
     <div className="flex-1 bg-bg-primary flex overflow-hidden">
       {/* Left Panel - Genome Overview */}
-      <div className="w-80 border-r border-border bg-bg-tertiary flex flex-col">
+      <div className="w-72 border-r border-border bg-bg-tertiary flex flex-col">
         <div className="h-8 px-4 flex items-center justify-between border-b border-border bg-bg-tertiary">
           <span className="text-2xs tracking-wide uppercase font-medium">Genome Overview</span>
         </div>
@@ -220,7 +238,7 @@ export function GenomeEditor() {
       </div>
 
       {/* Center Panel - Chromosome Editor */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col">
         <div className="h-8 px-4 flex items-center justify-between border-b border-border bg-bg-tertiary">
           <span className="text-2xs tracking-wide uppercase font-medium">Chromosome Editor</span>
           <div className="flex items-center gap-2">
@@ -251,10 +269,10 @@ export function GenomeEditor() {
         </div>
 
         {viewMode === 'visual' && geneModel ? (
-          <div className="flex-1 p-4 overflow-y-auto space-y-4">
+          <div ref={visualCanvasWrapRef} className="flex-1 p-4 overflow-y-auto space-y-4">
             <GeneGrowthCanvas
               gene={geneModel}
-              width={860}
+              width={visualCanvasWidth}
               height={420}
               onPartClick={(part) => {
                 if (part.type === 'regulator' && part.metadata?.rateLimit) {
@@ -322,7 +340,7 @@ export function GenomeEditor() {
       </div>
 
       {/* Right Panel - Operations */}
-      <div className="w-72 border-l border-border bg-bg-tertiary flex flex-col">
+      <div className="w-64 border-l border-border bg-bg-tertiary flex flex-col">
         <div className="h-8 px-4 flex items-center border-b border-border bg-bg-tertiary">
           <span className="text-2xs tracking-wide uppercase font-medium">Operations</span>
         </div>

@@ -31,6 +31,13 @@ interface BreedGenomesResponse {
   genome?: Genome;
 }
 
+interface OpenClawdRequestContext {
+  userId?: string;
+  workspaceId?: string;
+  model?: string;
+  modelProvider?: string;
+}
+
 export interface RuntimeModuleEvent {
   patchId?: string;
   moduleId: string;
@@ -51,6 +58,56 @@ function makeUrl(path: string): string {
 
 function getRuntimeEventsPath(): string {
   return process.env.NEXT_PUBLIC_OPENCLAWD_EVENTS_PATH?.trim() || '/api/runtime/events';
+}
+
+function getRequestContext(): OpenClawdRequestContext {
+  const userId = process.env.NEXT_PUBLIC_OPENCLAWD_USER_ID?.trim();
+  const workspaceId = process.env.NEXT_PUBLIC_OPENCLAWD_WORKSPACE_ID?.trim();
+  const model = process.env.NEXT_PUBLIC_OPENCLAWD_MODEL?.trim();
+  const modelProvider = process.env.NEXT_PUBLIC_OPENCLAWD_MODEL_PROVIDER?.trim();
+
+  return {
+    ...(userId ? { userId } : {}),
+    ...(workspaceId ? { workspaceId } : {}),
+    ...(model ? { model } : {}),
+    ...(modelProvider ? { modelProvider } : {}),
+  };
+}
+
+function withRequestContext<T extends Record<string, unknown>>(payload: T): T & { context?: OpenClawdRequestContext } {
+  const context = getRequestContext();
+  if (Object.keys(context).length === 0) {
+    return payload;
+  }
+  return {
+    ...payload,
+    context,
+  };
+}
+
+function getRequestHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const context = getRequestContext();
+  const apiKey = process.env.NEXT_PUBLIC_OPENCLAWD_API_KEY?.trim();
+  const apiKeyHeader = process.env.NEXT_PUBLIC_OPENCLAWD_API_KEY_HEADER?.trim() || 'x-openclaw-api-key';
+
+  if (apiKey) {
+    headers[apiKeyHeader] = apiKey;
+  }
+  if (context.userId) {
+    headers[process.env.NEXT_PUBLIC_OPENCLAWD_USER_HEADER?.trim() || 'x-openclaw-user-id'] = context.userId;
+  }
+  if (context.workspaceId) {
+    headers[process.env.NEXT_PUBLIC_OPENCLAWD_WORKSPACE_HEADER?.trim() || 'x-openclaw-workspace-id'] = context.workspaceId;
+  }
+  if (context.model) {
+    headers[process.env.NEXT_PUBLIC_OPENCLAWD_MODEL_HEADER?.trim() || 'x-openclaw-model'] = context.model;
+  }
+  if (context.modelProvider) {
+    headers[process.env.NEXT_PUBLIC_OPENCLAWD_MODEL_PROVIDER_HEADER?.trim() || 'x-openclaw-provider'] = context.modelProvider;
+  }
+
+  return headers;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -100,6 +157,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...getRequestHeaders(),
         ...(init?.headers || {}),
       },
     });
@@ -142,7 +200,7 @@ export const openclawdClient = {
   executePatch(patch: Patch): Promise<ApiResult<ExecutePatchResponse>> {
     return request<ExecutePatchResponse>(`/api/patches/${patch.id}/execute`, {
       method: 'POST',
-      body: JSON.stringify({ patch }),
+      body: JSON.stringify(withRequestContext({ patch })),
     });
   },
 
@@ -155,7 +213,7 @@ export const openclawdClient = {
   evolvePatch(payload: { patchId: string; strategy: string; patch: Patch }): Promise<ApiResult<EvolvePatchResponse>> {
     return request<EvolvePatchResponse>('/api/evolution/evolve', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(withRequestContext(payload)),
     });
   },
 
@@ -168,7 +226,7 @@ export const openclawdClient = {
   }): Promise<ApiResult<MutateGenomeResponse>> {
     return request<MutateGenomeResponse>('/api/genomes/mutate', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(withRequestContext(payload)),
     });
   },
 
@@ -181,7 +239,7 @@ export const openclawdClient = {
   }): Promise<ApiResult<BreedGenomesResponse>> {
     return request<BreedGenomesResponse>('/api/genomes/breed', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(withRequestContext(payload)),
     });
   },
 

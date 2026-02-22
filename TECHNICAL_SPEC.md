@@ -1,7 +1,7 @@
 # Clawdular Genome Studio - Technical Specification
 
 ## Overview
-An evolutionary modular synthesizer for AI skills that combines visual patching (synthesizer-style) with genetic manipulation (DNA sequencing) to create, evolve, and optimize skill workflows.
+A Skill DNA Sequencer for AI skills that combines visual workflow composition with genetic manipulation (DNA sequencing) to create, evolve, and optimize skill workflows.
 
 ---
 
@@ -12,7 +12,7 @@ An evolutionary modular synthesizer for AI skills that combines visual patching 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    PRESENTATION LAYER                        │
-│         (React/Vue UI - Patch Bay, Genome Editor)           │
+│      (React/Vue UI - Workflow Canvas, Genome Editor)        │
 ├─────────────────────────────────────────────────────────────┤
 │                    ORCHESTRATION LAYER                       │
 │    (Node.js/Python - Module Manager, Evolution Engine)      │
@@ -456,7 +456,7 @@ ws.join(`patch:${patchId}`);
 
 ### Phase 1: Core (MVP)
 - [ ] Module registry with basic skills
-- [ ] Visual patch bay (drag-drop, connections)
+- [ ] Visual workflow canvas (drag-drop, connections)
 - [ ] Basic genome extraction
 - [ ] Simple execution engine
 
@@ -484,7 +484,7 @@ ws.join(`patch:${patchId}`);
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React + TypeScript + D3.js (for patch bay) |
+| Frontend | React + TypeScript + D3.js (for workflow canvas) |
 | State Management | Zustand + React Query |
 | Backend | Node.js + Express / Fastify |
 | Database | PostgreSQL + Redis |

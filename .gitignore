@@ -4,6 +4,8 @@
 # Node / Next.js
 node_modules/
 .next/
+.rhizome/
+nextjs-app/.rhizome/
 out/
 dist/
 coverage/

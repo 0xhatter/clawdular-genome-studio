@@ -1,14 +1,20 @@
-# 🧬🎛️ Clawdular Genome Studio
+# 🧬 Clawdular Genome Studio
 
-> **The Evolutionary Modular Synthesizer for AI Skills**
+> **The Skill DNA Sequencer for AI Automation Workflows**
 
-Clawdular Genome Studio is a revolutionary skill-building platform that combines the visual patching paradigm of modular synthesizers with genetic programming concepts. Create, evolve, and optimize AI skill workflows through an intuitive visual interface.
+Clawdular Genome Studio is a skill-building platform that combines visual workflow composition with genetic programming concepts. Create, evolve, and optimize AI skill workflows through an interactive DNA-inspired interface.
+
+## What Is Clawdular?
+
+Clawdular is a visual **Skill DNA Sequencer** for automation workflows.
+
+You build workflows by connecting skills on a canvas, then improve them using genetic-style operations like extract, mutate, splice, and breed. It helps teams iterate faster while keeping workflow logic understandable.
 
 ---
 
 ## 🌟 Key Features
 
-### 🎛️ Visual Patch Bay
+### 🧩 Visual Workflow Canvas
 - Drag-and-drop skill modules onto an infinite canvas
 - Connect modules with glowing data cables
 - Hot-swap modules during live execution
@@ -37,11 +43,11 @@ Clawdular Genome Studio is a revolutionary skill-building platform that combines
 
 ## 📸 Interface Preview
 
-### Dashboard - View All Your Patches
+### Dashboard - View All Your Workflows
 ![Dashboard](./mockup-01-dashboard.png)
 
-### Patch Bay - Visual Workflow Builder
-![Patch Bay](./mockup-02-patch-bay.png)
+### Workflow Canvas - Skill Graph Builder
+![Workflow Canvas](./mockup-02-patch-bay.png)
 
 ### Genome Editor - DNA Sequencing
 ![Genome Editor](./mockup-03-genome-editor.png)
@@ -103,11 +109,11 @@ npm run dev
 ### Creating Your First Patch
 
 1. **Open the Dashboard** - Navigate to `http://localhost:3000`
-2. **Create a New Patch** - Click "New Patch" and give it a name
+2. **Create a New Workflow** - Click "New Workflow" and give it a name
 3. **Add Modules** - Drag skills from the sidebar onto the canvas
 4. **Connect Modules** - Click and drag from output ports to input ports
 5. **Execute** - Click the play button to run your workflow
-6. **Evolve** - Use genetic operations to improve your patch
+6. **Evolve** - Use genetic operations to improve your workflow
 
 ---
 
@@ -163,7 +169,7 @@ The DNA of a skill, consisting of four chromosomes:
 - **Behavior** - How the skill handles errors, retries, etc.
 - **Metadata** - Name, description, tags, author
 
-### Patch
+### Workflow
 A complete workflow consisting of:
 - Multiple connected modules
 - A generation number
@@ -220,13 +226,13 @@ const mutant = genomeEngine.mutate(
 
 ## 📊 Fitness Scoring
 
-Patches are scored across five dimensions:
+Workflows are scored across five dimensions:
 
 | Dimension | Description | Weight |
 |-----------|-------------|--------|
 | **Reliability** | Success rate of executions | 25% |
 | **Efficiency** | Token usage and execution time | 25% |
-| **Utility** | How often the patch is used | 20% |
+| **Utility** | How often the workflow is used | 20% |
 | **Satisfaction** | User ratings and feedback | 20% |
 | **Adaptability** | Error recovery capability | 10% |
 
@@ -376,7 +382,7 @@ MIT License - see [LICENSE](./LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
-- Inspired by Eurorack modular synthesizers
+- Inspired by biological evolution and genetic recombination systems
 - Genetic programming concepts from evolutionary computation
 - Built on the OpenClaw ecosystem
 - UI design influenced by Ableton Live and Blender

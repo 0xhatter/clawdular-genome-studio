@@ -22,7 +22,8 @@ export function Inspector() {
     : null;
 
   const moduleName = selectedModule?.genome.chromosomes.metadata?.name || selectedModule?.skillId || '';
-  const geneGrowthEnabled = process.env.NEXT_PUBLIC_GENE_GROWTH_UI === 'true';
+  // DNA visualization is the default active experience unless explicitly disabled.
+  const geneGrowthEnabled = process.env.NEXT_PUBLIC_GENE_GROWTH_UI !== 'false';
   const operationMode = useMemo<'extract' | 'replace'>(() => {
     const mode = selectedModule?.genome.chromosomes.action.operations?.[0]?.config?.mode;
     return mode === 'replace' ? 'replace' : 'extract';
@@ -46,7 +47,7 @@ export function Inspector() {
           <span className="text-2xs tracking-wide font-medium">Node Inspector</span>
         </div>
         <div className="flex-1 flex items-center justify-center text-text-tertiary text-xs uppercase tracking-wide">
-          NO PATCH SELECTED
+          NO WORKFLOW SELECTED
         </div>
       </aside>
     );

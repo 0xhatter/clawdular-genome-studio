@@ -1,0 +1,17 @@
+{
+  "tasks": {
+    "extract": {
+      "chain": ["deep_chat", "fast_chat"]
+    },
+    "summarize": {
+      "chain": ["deep_chat", "fast_chat"]
+    },
+    "embed": {
+      "chain": ["embed_small"]
+    }
+  },
+  "retry": {
+    "maxRetries": 2,
+    "backoffMs": 250
+  }
+}

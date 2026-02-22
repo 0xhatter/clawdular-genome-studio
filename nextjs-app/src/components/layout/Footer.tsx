@@ -1,13 +1,24 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 
 export function Footer() {
   const { currentPatchId, patches } = useAppStore();
   const currentPatch = currentPatchId ? patches[currentPatchId] : null;
 
-  const now = new Date();
-  const timeString = now.toISOString().split('T')[1].split('.')[0];
+  const [timeString, setTimeString] = useState('--:--:--');
+
+  useEffect(() => {
+    const getUtcTime = () => new Date().toISOString().split('T')[1].split('.')[0];
+    setTimeString(getUtcTime());
+
+    const intervalId = window.setInterval(() => {
+      setTimeString(getUtcTime());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   return (
     <footer className="h-status bg-bg-tertiary border-t border-border flex items-center px-4 text-2xs justify-between text-text-secondary">
@@ -30,7 +41,7 @@ export function Footer() {
         {currentPatch && (
           <>
             <div className="flex gap-2">
-              <span>PATCH:</span>
+              <span>WORKFLOW:</span>
               <span className="text-text-primary uppercase">{currentPatch.name}</span>
             </div>
             <div className="flex gap-2">

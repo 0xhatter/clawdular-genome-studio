@@ -4,14 +4,16 @@ export { Footer } from './layout/Footer';
 export { Sidebar } from './layout/Sidebar';
 export { Inspector } from './layout/Inspector';
 
-// Patch Bay components
-export { ModuleNode } from './patchbay/ModuleNode';
-export { CableLayer } from './patchbay/CableLayer';
-export { PatchBayCanvas } from './patchbay/PatchBayCanvas';
+// Workflow canvas components
+export { ModuleNode } from './workflowCanvas/ModuleNode';
+export { CableLayer } from './workflowCanvas/CableLayer';
+export { WorkflowCanvas } from './workflowCanvas/WorkflowCanvas';
 
 // View components
 export { Dashboard } from './views/Dashboard';
 export { GenomeEditor } from './views/GenomeEditor';
+export { Rhizome } from './views/Rhizome';
+export { Simulacra } from './views/Simulacra';
 export { Evolution } from './views/Evolution';
 
 // Genome visualization components

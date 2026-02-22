@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
-import { cn, truncateId } from '@/lib/utils';
+import { cn, humanizeLabel } from '@/lib/utils';
 
 export function Sidebar() {
   const { 
@@ -17,17 +17,27 @@ export function Sidebar() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isGenomeSidebarCollapsed, setIsGenomeSidebarCollapsed] = useState(false);
 
   const patchList = Object.values(patches);
+  const isCollapsibleWorkflowSidebarView = currentView === 'genome' || currentView === 'rhizome' || currentView === 'evolution';
+  const isCollapsedGenomeSidebar = isCollapsibleWorkflowSidebarView && isGenomeSidebarCollapsed;
+
+  useEffect(() => {
+    if (!isCollapsibleWorkflowSidebarView) {
+      setIsGenomeSidebarCollapsed(false);
+    }
+  }, [isCollapsibleWorkflowSidebarView]);
 
   const filteredSkills = skillLibrary.filter(skill => {
-    const matchesSearch = skill.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = `${skill.name} ${humanizeLabel(skill.name)}`.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = !selectedCategory || skill.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+  const logicSkillCount = skillLibrary.filter((skill) => skill.category === 'logic').length;
 
   const handleCreatePatch = () => {
-    const newPatch = createPatch(`PATCH_${String(patchList.length + 1).padStart(3, '0')}`);
+    const newPatch = createPatch(`WORKFLOW_${String(patchList.length + 1).padStart(3, '0')}`);
     loadPatch(newPatch.id);
   };
 
@@ -47,14 +57,14 @@ export function Sidebar() {
     return (
       <aside className="w-sidebar border-r border-border bg-bg-tertiary flex flex-col z-5">
         <div className="h-8 px-4 flex items-center justify-between border-b border-border bg-bg-tertiary">
-          <span className="text-2xs tracking-wide uppercase font-medium">All Patches</span>
+          <span className="text-2xs tracking-wide uppercase font-medium">All Workflows</span>
           <span className="text-text-tertiary text-2xs">[{String(patchList.length).padStart(3, '0')}]</span>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {patchList.length === 0 ? (
             <div className="p-4 text-text-tertiary text-xs text-center">
-              NO PATCHES FOUND
+              NO WORKFLOWS FOUND
             </div>
           ) : (
             patchList.map((patch) => (
@@ -83,18 +93,46 @@ export function Sidebar() {
           onClick={handleCreatePatch}
           className="h-8 px-4 flex items-center justify-center border-t border-border bg-bg-tertiary text-2xs tracking-wide uppercase hover:bg-bg-elevated transition-colors"
         >
-          [+] NEW PATCH
+          [+] NEW WORKFLOW
         </button>
+      </aside>
+    );
+  }
+
+  if (isCollapsedGenomeSidebar) {
+    return (
+      <aside className="w-14 border-r border-border bg-bg-tertiary flex flex-col z-5">
+        <div className="h-8 px-2 flex items-center justify-between border-b border-border bg-bg-tertiary">
+          <span className="text-text-tertiary text-2xs">[{String(patchList.length).padStart(3, '0')}]</span>
+          <button
+            onClick={() => setIsGenomeSidebarCollapsed(false)}
+            className="w-5 h-5 border border-border bg-bg-primary text-2xs hover:bg-bg-elevated transition-colors"
+            title="Expand active workflows"
+          >
+            ›
+          </button>
+        </div>
       </aside>
     );
   }
 
   return (
     <aside className="w-sidebar border-r border-border bg-bg-tertiary flex flex-col z-5">
-      {/* Active Patches */}
+      {/* Active Workflows */}
       <div className="h-8 px-4 flex items-center justify-between border-b border-border bg-bg-tertiary">
-        <span className="text-2xs tracking-wide uppercase font-medium">Active Patches</span>
-        <span className="text-text-tertiary text-2xs">[{String(patchList.length).padStart(3, '0')}]</span>
+        <span className="text-2xs tracking-wide uppercase font-medium">Active Workflows</span>
+        <div className="flex items-center gap-1">
+          <span className="text-text-tertiary text-2xs">[{String(patchList.length).padStart(3, '0')}]</span>
+          {isCollapsibleWorkflowSidebarView && (
+            <button
+              onClick={() => setIsGenomeSidebarCollapsed(true)}
+              className="w-5 h-5 border border-border bg-bg-primary text-2xs hover:bg-bg-elevated transition-colors"
+              title="Collapse active workflows"
+            >
+              ‹
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto max-h-[200px]">
@@ -122,7 +160,7 @@ export function Sidebar() {
       {/* Module Library */}
       <div className="h-8 px-4 flex items-center justify-between border-t border-b border-border bg-bg-tertiary">
         <span className="text-2xs tracking-wide uppercase font-medium">Module Library</span>
-        <span className="text-text-tertiary text-2xs">[+]</span>
+        <span className="text-text-tertiary text-2xs">[LOG:{String(logicSkillCount).padStart(2, '0')}]</span>
       </div>
 
       <div className="p-4 flex-1 overflow-y-auto">
@@ -131,7 +169,7 @@ export function Sidebar() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="SEARCH_MODULES..."
+            placeholder="Search skills..."
             className="w-full bg-bg-primary border border-border text-text-primary px-2 py-2 text-xs font-mono outline-none focus:border-accent"
           />
         </div>
@@ -147,29 +185,35 @@ export function Sidebar() {
                 selectedCategory === cat && 'bg-text-primary text-bg-primary border-text-primary'
               )}
             >
-              {cat}
+              {cat.toUpperCase()}
             </button>
           ))}
         </div>
 
         <div className="space-y-1">
-          {filteredSkills.map((skill) => (
-            <button
-              key={skill.id}
-              onClick={() => handleAddModule(skill.id)}
-              disabled={!currentPatchId}
-              className={cn(
-                'w-full px-3 py-2 border border-border bg-bg-primary text-left text-xs font-mono uppercase',
-                'hover:bg-bg-elevated hover:border-border-light transition-colors',
-                !currentPatchId && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              <div className="flex justify-between items-center">
-                <span>{skill.name}</span>
-                <span className="text-text-tertiary text-2xs">{skill.category}</span>
-              </div>
-            </button>
-          ))}
+          {filteredSkills.length === 0 ? (
+            <div className="px-2 py-4 text-center text-2xs text-text-tertiary uppercase">
+              No matching modules
+            </div>
+          ) : (
+            filteredSkills.map((skill) => (
+              <button
+                key={skill.id}
+                onClick={() => handleAddModule(skill.id)}
+                disabled={!currentPatchId}
+                className={cn(
+                  'w-full px-3 py-2 border border-border bg-bg-primary text-left text-xs font-mono uppercase',
+                  'hover:bg-bg-elevated hover:border-border-light transition-colors',
+                  !currentPatchId && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <div className="flex justify-between items-center">
+                  <span>{humanizeLabel(skill.name)}</span>
+                  <span className="text-text-tertiary text-2xs">{skill.category.toUpperCase()}</span>
+                </div>
+              </button>
+            ))
+          )}
         </div>
       </div>
     </aside>

@@ -49,7 +49,7 @@ export function Evolution() {
     return (
       <div className="flex-1 bg-bg-primary flex items-center justify-center">
         <div className="text-text-tertiary text-xs uppercase tracking-wide text-center">
-          SELECT A PATCH TO VIEW EVOLUTION
+          SELECT A WORKFLOW TO VIEW EVOLUTION
         </div>
       </div>
     );
@@ -60,7 +60,7 @@ export function Evolution() {
   return (
     <div className="flex-1 bg-bg-primary flex overflow-hidden">
       {/* Left Panel - Evolution Timeline */}
-      <div className="w-96 border-r border-border bg-bg-tertiary flex flex-col">
+      <div className="w-60 border-r border-border bg-bg-tertiary flex flex-col">
         <div className="h-8 px-4 flex items-center justify-between border-b border-border bg-bg-tertiary">
           <span className="text-2xs tracking-wide uppercase font-medium">Evolution Timeline</span>
           <span className="text-text-tertiary text-2xs">
@@ -173,7 +173,7 @@ export function Evolution() {
       </div>
 
       {/* Center Panel - Comparison */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col">
         <div className="h-8 px-4 flex items-center justify-between border-b border-border bg-bg-tertiary">
           <span className="text-2xs tracking-wide uppercase font-medium">
             Generation Comparison
@@ -196,7 +196,7 @@ export function Evolution() {
       </div>
 
       {/* Right Panel - Stats */}
-      <div className="w-72 border-l border-border bg-bg-tertiary flex flex-col">
+      <div className="w-52 border-l border-border bg-bg-tertiary flex flex-col">
         <div className="h-8 px-4 flex items-center border-b border-border bg-bg-tertiary">
           <span className="text-2xs tracking-wide uppercase font-medium">Statistics</span>
         </div>

@@ -72,3 +72,13 @@ export function incrementVersion(version: string): string {
   const patch = parseInt(parts[2] || '0') + 1;
   return `${parts[0]}.${parts[1]}.${patch}`;
 }
+
+export function humanizeLabel(value: string): string {
+  return value
+    .replace(/[_-]+/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}

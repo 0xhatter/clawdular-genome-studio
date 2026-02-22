@@ -1,14 +1,17 @@
 'use client';
 
 import { useRef } from 'react';
+import Image from 'next/image';
 import { useAppStore } from '@/store/appStore';
 import { ViewType } from '@/types';
 import { cn } from '@/lib/utils';
 
 const navItems: { id: ViewType; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'patchbay', label: 'Patch Bay' },
+  { id: 'workflowCanvas', label: 'Workflow Canvas' },
   { id: 'genome', label: 'Genome' },
+  { id: 'rhizome', label: 'Rhizome' },
+  { id: 'simulacra', label: 'Simulacra' },
   { id: 'evolution', label: 'Evolution' },
 ];
 
@@ -24,7 +27,7 @@ export function Header() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `clawdular-patch-${Date.now()}.json`;
+    anchor.download = `clawdular-workflow-${Date.now()}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -37,9 +40,16 @@ export function Header() {
   return (
     <header className="h-header bg-bg-primary border-b border-border flex items-center justify-between px-4 z-10">
       <div className="flex items-center gap-3">
-        <span className="text-base">🧬</span>
-        <span className="text-sm tracking-widest font-normal uppercase">
-          CLAWDULAR GENOME STUDIO
+        <div className="relative w-[36px] h-[36px]">
+          <Image
+            src="/clawdular.svg"
+            alt="Clawdular Logo"
+            fill
+            className="object-contain"
+          />
+        </div>
+        <span className="text-xs font-press-start uppercase tracking-normal text-text-primary mt-1">
+          CLAWDULAR DNA SEQUENCER
         </span>
       </div>
 
@@ -93,14 +103,14 @@ export function Header() {
           <button
             onClick={handleExport}
             className="h-8 px-2 border border-border bg-bg-primary text-text-secondary text-2xs uppercase tracking-wide hover:text-text-primary hover:bg-bg-elevated transition-colors border-r-0"
-            title="Export current patch"
+            title="Export current workflow"
           >
             Export
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="h-8 px-2 border border-border bg-bg-primary text-text-secondary text-2xs uppercase tracking-wide hover:text-text-primary hover:bg-bg-elevated transition-colors"
-            title="Import patch JSON"
+            title="Import workflow JSON"
           >
             Import
           </button>

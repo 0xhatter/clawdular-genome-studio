@@ -71,7 +71,7 @@ A minimalist, retro-futuristic interface inspired by 1970s-1980s NASA mission co
 - 20px gutters
 - 40px margins
 
-### Canvas Grid (Patch Bay)
+### Canvas Grid (Workflow Canvas)
 - 20px minor grid lines
 - 100px major grid lines
 - Grid color: `#1a1a1a`
@@ -108,7 +108,7 @@ A minimalist, retro-futuristic interface inspired by 1970s-1980s NASA mission co
 - Nav items: 10px uppercase, separated by `│`
 - Active nav: White underline (2px)
 
-### 2. Module Node (Patch Bay)
+### 2. Module Node (Workflow Canvas)
 ```
 ┌─────────────────┐
 │ ▓▓ MODULE_NAME  │  Header: 24px height
@@ -363,7 +363,7 @@ All icons are 16×16px, 1px stroke, no fill:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Patch Bay
+### 2. Workflow Canvas
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  🧬  CLAWDULAR GENOME STUDIO          DASH │ PATCH │ GENE │ EVO │
@@ -496,7 +496,7 @@ frontend/
 │   │   │   ├── Panel.tsx
 │   │   │   ├── Input.tsx
 │   │   │   └── Table.tsx
-│   │   ├── patchbay/        # Patch bay components
+│   │   ├── patchbay/        # Workflow canvas components
 │   │   │   ├── Canvas.tsx
 │   │   │   ├── Module.tsx
 │   │   │   └── Connection.tsx
@@ -527,7 +527,7 @@ frontend/
 - **Framework**: React 18 + TypeScript
 - **Styling**: Tailwind CSS (custom config)
 - **State**: Zustand
-- **Canvas**: D3.js (for patch bay)
+- **Canvas**: D3.js (for workflow canvas)
 - **Icons**: Custom SVG (monochrome)
 - **Fonts**: IBM Plex Mono, Inter
 

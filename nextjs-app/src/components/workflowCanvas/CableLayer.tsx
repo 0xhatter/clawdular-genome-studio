@@ -9,9 +9,16 @@ interface CableLayerProps {
   connections: Connection[];
   previewConnection: { from: { moduleId: string; portId: string }; to: Point } | null;
   onConnectionClick?: (connectionId: string) => void;
+  selectedConnectionId?: string | null;
 }
 
-export function CableLayer({ modules, connections, previewConnection, onConnectionClick }: CableLayerProps) {
+export function CableLayer({
+  modules,
+  connections,
+  previewConnection,
+  onConnectionClick,
+  selectedConnectionId = null,
+}: CableLayerProps) {
   const moduleMap = useMemo(() => {
     const map = new Map<string, Module>();
     modules.forEach(m => map.set(m.id, m));
@@ -69,6 +76,7 @@ export function CableLayer({ modules, connections, previewConnection, onConnecti
         if (!start || !end) return null;
 
         const path = getBezierPath(start.x, start.y, end.x, end.y);
+        const isSelected = selectedConnectionId === connection.id;
 
         return (
           <g key={connection.id}>
@@ -85,12 +93,15 @@ export function CableLayer({ modules, connections, previewConnection, onConnecti
             <path
               d={path}
               fill="none"
-              stroke={connection.active ? '#fff' : '#444'}
-              strokeWidth={1}
+              stroke={isSelected ? '#fff' : connection.active ? '#fff' : '#444'}
+              strokeWidth={isSelected ? 2 : 1}
               strokeDasharray={connection.active ? '4 4' : undefined}
               className={connection.active ? 'cable-flow pointer-events-auto cursor-pointer' : 'pointer-events-auto cursor-pointer'}
               markerEnd={connection.active ? 'url(#dot)' : 'url(#arrowhead)'}
-              onClick={() => onConnectionClick?.(connection.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onConnectionClick?.(connection.id);
+              }}
             />
           </g>
         );

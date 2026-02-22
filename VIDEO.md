@@ -6,7 +6,7 @@
 **Duration**: 60-90 seconds  
 **Style**: Cinematic tech documentary meets retro-futuristic NASA aesthetic  
 **Tone**: Mysterious, powerful, revolutionary  
-**Music**: Synthwave with industrial undertones, building to climax
+**Music**: Cinematic ambient-electronic score with biological tension, building to climax
 
 ---
 
@@ -83,7 +83,7 @@
 **Audio**:
 - CRT monitor hum (ambient)
 - Typing sounds (mechanical keyboard)
-- Low synth pad enters
+- Low atmospheric pad enters
 
 **Technical Notes**:
 - Use actual CRT shader effects:
@@ -102,7 +102,7 @@
 **Visual**:
 - Camera pushes INTO the center monitor
 - Transition through the screen (pixelated dissolve)
-- We enter the Patch Bay interface
+- We enter the Workflow Canvas interface
 - Black void with white grid extending infinitely
 - Modules materialize one by one:
   1. Gmail module (blue-white glow) - drops from top
@@ -275,7 +275,7 @@
 
 **Visual**:
 - Camera pulls back rapidly
-- We see the entire Patch Bay from above
+- We see the entire Workflow Canvas from above
 - Multiple patches running simultaneously
 - They form a constellation/grid pattern
 - Camera continues pulling back
@@ -336,7 +336,7 @@
 |---|-------|----------|------------|-------------|
 | 1 | Awakening | 8s | Grid formation | Push forward |
 | 2 | Terminal | 10s | CRT monitors | Pan right |
-| 3 | Patch Bay | 14s | Modules connect | Orbit 360° |
+| 3 | Workflow Canvas | 14s | Modules connect | Orbit 360° |
 | 4 | Genome | 13s | DNA helix | Push through |
 | 5 | Evolution | 13s | Split screen | Static |
 | 6 | Execution | 10s | Data flow | Follow packet |
@@ -388,7 +388,7 @@
    - Execution (power-up)
 
 4. **Music**
-   - Genre: Synthwave / Industrial
+   - Genre: Cinematic Ambient / Industrial
    - Reference artists: Carpenter Brut, Perturbator, Hans Zimmer (Blade Runner 2049)
    - BPM: 120-130
    - Structure: Build → Drop → Climax → Resolve

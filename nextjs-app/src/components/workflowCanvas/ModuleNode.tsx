@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { Module, Port, PortRef } from '@/types';
 import { useAppStore } from '@/store/appStore';
-import { cn } from '@/lib/utils';
+import { cn, humanizeLabel } from '@/lib/utils';
 
 interface ModuleNodeProps {
   module: Module;
@@ -68,7 +68,7 @@ export function ModuleNode({
     );
   };
 
-  const moduleName = module.genome.chromosomes.metadata?.name || module.skillId;
+  const moduleName = humanizeLabel(module.genome.chromosomes.metadata?.name || module.skillId);
 
   return (
     <div
@@ -138,7 +138,7 @@ export function ModuleNode({
                 connectingFrom && 'animate-pulse border-accent'
               )}
             />
-            <span className="text-2xs font-mono text-text-secondary">{input.name}</span>
+            <span className="text-2xs font-mono text-text-secondary">{humanizeLabel(input.name)}</span>
           </div>
         </div>
       ))}
@@ -158,7 +158,7 @@ export function ModuleNode({
         >
           <span></span>
           <div className="flex items-center gap-2">
-            <span className="text-2xs font-mono text-text-secondary">{output.name}</span>
+            <span className="text-2xs font-mono text-text-secondary">{humanizeLabel(output.name)}</span>
             <div
               className={cn(
                 'w-2 h-2 border border-text-tertiary',
